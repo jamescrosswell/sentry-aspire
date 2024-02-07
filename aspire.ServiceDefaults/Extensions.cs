@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
+using Sentry.OpenTelemetry;
 
 namespace Microsoft.Extensions.Hosting;
 
@@ -13,6 +14,8 @@ public static class Extensions
 {
     public static IHostApplicationBuilder AddServiceDefaults(this IHostApplicationBuilder builder)
     {
+        builder.ConfigureSentry();
+
         builder.ConfigureOpenTelemetry();
 
         builder.AddDefaultHealthChecks();
@@ -55,7 +58,8 @@ public static class Extensions
 
                 tracing.AddAspNetCoreInstrumentation()
                        .AddGrpcClientInstrumentation()
-                       .AddHttpClientInstrumentation();
+                       .AddHttpClientInstrumentation()
+                       .AddSentry(); // <-- Send telemetry to Sentry (requires the Sentry.OpenTelemetry package)
             });
 
         builder.AddOpenTelemetryExporters();
@@ -63,6 +67,36 @@ public static class Extensions
         return builder;
     }
 
+    private static IHostApplicationBuilder ConfigureSentry(this IHostApplicationBuilder builder)
+    {
+        // Initialize Sentry (requires the Sentry.OpenTelemetry package)
+        SentrySdk.Init(options =>
+        {
+            // TODO: What's the best way to have project/environment specific configuration in Aspire?
+            options.Dsn = "https://b887218a80114d26a9b1a51c5f88e0b4@o447951.ingest.sentry.io/6601807";
+            options.Debug = builder.Environment.IsDevelopment();
+            options.TracesSampleRate = 1.0;
+            options.UseOpenTelemetry(); // <-- Configure Sentry to use OpenTelemetry trace information
+            options.ExperimentalMetrics = new ExperimentalMetricsOptions()
+            {
+                EnableCodeLocations = true,
+                CaptureSystemDiagnosticsMeters = BuiltInSystemDiagnosticsMeters.All
+            };
+        });
+        
+        // var sentryDsn = builder.Configuration["SENTRY_DSN"];
+        //
+        // if (!string.IsNullOrWhiteSpace(sentryDsn))
+        // {
+        //     builder.Services.AddSentryTracing(options =>
+        //     {
+        //         options.TracesSampleRate = 1.0;
+        //     });
+        // }
+
+        return builder;
+    }
+    
     private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
     {
         var useOtlpExporter = !string.IsNullOrWhiteSpace(builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
