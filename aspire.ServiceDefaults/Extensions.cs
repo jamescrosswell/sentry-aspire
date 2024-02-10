@@ -69,32 +69,23 @@ public static class Extensions
 
     private static IHostApplicationBuilder ConfigureSentry(this IHostApplicationBuilder builder)
     {
-        // Initialize Sentry (requires the Sentry.OpenTelemetry package)
-        SentrySdk.Init(options =>
-        {
-            // TODO: What's the best way to have project/environment specific configuration in Aspire?
-            options.Dsn = "https://b887218a80114d26a9b1a51c5f88e0b4@o447951.ingest.sentry.io/6601807";
-            options.Debug = builder.Environment.IsDevelopment();
-            options.TracesSampleRate = 1.0;
-            options.UseOpenTelemetry(); // <-- Configure Sentry to use OpenTelemetry trace information
-            options.ExperimentalMetrics = new ExperimentalMetricsOptions()
-            {
-                EnableCodeLocations = true,
-                CaptureSystemDiagnosticsMeters = BuiltInSystemDiagnosticsMeters.All
-            };
-        });
-        
+        // TODO: What's the best way to have project/environment specific configuration in Aspire?
+        // Is it simply using appsettings.json? Different microservices might have different Sentry DSNs.
         // var sentryDsn = builder.Configuration["SENTRY_DSN"];
-        //
-        // if (!string.IsNullOrWhiteSpace(sentryDsn))
-        // {
-        //     builder.Services.AddSentryTracing(options =>
-        //     {
-        //         options.TracesSampleRate = 1.0;
-        //     });
-        // }
+        const string sentryDsn = "https://b887218a80114d26a9b1a51c5f88e0b4@o447951.ingest.sentry.io/6601807";
+
+        SentrySdk.Init(ConfigureOptions);
 
         return builder;
+
+        void ConfigureOptions(SentryOptions options)
+        {
+            options.Dsn = sentryDsn;
+            options.Debug = true;
+            options.TracesSampleRate = 1.0;
+            options.UseOpenTelemetry(); // <-- Configure Sentry to use OpenTelemetry trace information
+            options.ExperimentalMetrics = new ExperimentalMetricsOptions() { EnableCodeLocations = true, CaptureSystemDiagnosticsMeters = BuiltInSystemDiagnosticsMeters.All };
+        }
     }
     
     private static IHostApplicationBuilder AddOpenTelemetryExporters(this IHostApplicationBuilder builder)
